@@ -4,6 +4,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -49,7 +51,7 @@ public class XETHTest {
         if(enterASeq == -1){
             return new BigDecimal(0);
         }
-        return new BigDecimal(0.0001*(txSize - enterASeq));
+        return new BigDecimal(0.001*(txSize - enterASeq));
     }
 
     // 计算节点在B区间的益,如果不在A区间返回0,否则根据其进入A区间的seq和总量计算
@@ -80,25 +82,31 @@ public class XETHTest {
         if (enterSeq > 200) {
             // 如果当前轮次与进入轮次比较超过100,则该交易落在B区域,拿到全额100次C区域收益
             if (txSize - enterSeq > 100) {
-                return new BigDecimal(0.01);
+                return new BigDecimal(0.1);
             } else
-                return new BigDecimal(0.0001 * (txSize - enterSeq));
+                return new BigDecimal(0.001 * (txSize - enterSeq));
         }
         if (enterSeq < 101 || txSize < 200)
             return new BigDecimal(0);
         // enterSeq [101, 200]区间交易
-        // 前100~200的情况, 最多获得enterSeq - 100次收益
-        if (txSize - enterSeq > enterSeq - 100) {
-            return new BigDecimal(0.01 * (enterSeq - 100));
-        } else
-            return new BigDecimal(0.01 * (txSize - enterSeq));
+//        enterSeq 101~ 200
+//        txSize > 300
+//        300 > txSize > enterSeq + 100 == 处于B区间
+
+        if (txSize > 300 || enterSeq < txSize - 100) {
+            return new BigDecimal(0.001 * (enterSeq - 100));
+        }
+        // txSize 200~ 300
+        else {
+            return new BigDecimal(0.001 * (txSize - 200));
+        }
     }
 
 
     @Test
     public void testStaticProfit() throws IOException {
         //所有数组让出0 从第一位开始
-        int max = 10000000;//210000001;
+        int max = 500000;//10000000;//210000001;
         BigDecimal ticketVal = new BigDecimal(1);
         BigDecimal[] assistArray = new BigDecimal[max];
         int[] enterASeq = new int[max];  //记录每个节点进入A区间的时刻
@@ -122,19 +130,17 @@ public class XETHTest {
                 leftSize ++;
                 //假设已有10个出局, i进入时第11号出局,第111号进入A区间, 享受到了i贡献的B区间分红
                 enterASeq[leftSize+100] = seq;
-            }
-            if(seq > 10000){
-                countProfit(300, 300, leftSize, assistArray, enterASeq[300]);
+                System.out.println(seq);
             }
         }
         int[] count = new int[]{0,0,0,0};
-/*      // 文件输出收益数据
+      // 文件输出收益数据
         File file = new File("/Users/song/Downloads/XETHresult.txt");
         if (file.exists()){
             file.delete();
             file.createNewFile();
         }
-        FileWriter fw = new FileWriter(file);*/
+        FileWriter fw = new FileWriter(file);
         for(int i = 1; i < max; i++){
             BigDecimal profit = countProfit(i, max-1, leftSize, assistArray, enterASeq[i]);
             if(profit.compareTo(new BigDecimal(3))>=0){
@@ -146,10 +152,10 @@ public class XETHTest {
             else if(profit.compareTo(new BigDecimal(1))>=0){
                 count[1]++;
             }
-//            fw.append(profit.toPlainString()+"\n");
+            fw.append(profit.toPlainString()+"\n");
         }
-        /*fw.flush();
-        fw.close();*/
+        fw.flush();
+        fw.close();
         Arrays.stream(count).forEach(System.out::println);
     }
 }
